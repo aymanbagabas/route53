@@ -4,21 +4,26 @@ import (
 	"context"
 	"time"
 
-	r53 "github.com/aws/aws-sdk-go/service/route53"
+	r53 "github.com/aws/aws-sdk-go-v2/service/route53"
 	"github.com/libdns/libdns"
 )
 
 // Provider implements the libdns interfaces for Route53
 type Provider struct {
-	MaxRetries      int    `json:"max_retries,omitempty"`
-	AWSProfile      string `json:"aws_profile,omitempty"`
-	AccessKeyId     string `json:"access_key_id,omitempty"`
-	SecretAccessKey string `json:"secret_access_key,omitempty"`
-	client          *r53.Route53
+	MaxRetries      int           `json:"max_retries,omitempty"`
+	MaxWaitDur      time.Duration `json:"max_wait_dur,omitempty"`
+	Region          string        `json:"region,omitempty"`
+	AWSProfile      string        `json:"aws_profile,omitempty"`
+	AccessKeyId     string        `json:"access_key_id,omitempty"`
+	SecretAccessKey string        `json:"secret_access_key,omitempty"`
+	Token           string        `json:"token,omitempty"`
+	client          *r53.Client
 }
 
 // GetRecords lists all the records in the zone.
 func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
+	p.init()
+
 	zoneID, err := p.getZoneID(ctx, zone)
 	if err != nil {
 		return nil, err
@@ -34,6 +39,8 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 
 // AppendRecords adds records to the zone. It returns the records that were added.
 func (p *Provider) AppendRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
+	p.init()
+
 	zoneID, err := p.getZoneID(ctx, zone)
 	if err != nil {
 		return nil, err
@@ -56,6 +63,8 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 // DeleteRecords deletes the records from the zone. If a record does not have an ID,
 // it will be looked up. It returns the records that were deleted.
 func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
+	p.init()
+
 	zoneID, err := p.getZoneID(ctx, zone)
 	if err != nil {
 		return nil, err
@@ -78,6 +87,8 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 // SetRecords sets the records in the zone, either by updating existing records
 // or creating new ones. It returns the updated records.
 func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
+	p.init()
+
 	zoneID, err := p.getZoneID(ctx, zone)
 	if err != nil {
 		return nil, err
