@@ -18,7 +18,7 @@ import (
 )
 
 // init initializes the AWS client
-func (p *Provider) init() {
+func (p *Provider) init(ctx context.Context) {
 	if p.client != nil {
 		return
 	}
@@ -33,7 +33,7 @@ func (p *Provider) init() {
 		p.MaxWaitDur = time.Minute
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithSharedConfigProfile(p.AWSProfile),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(p.AccessKeyId, p.SecretAccessKey, p.Token)),
 		config.WithRegion(p.Region),
@@ -61,11 +61,11 @@ func (p *Provider) getRecords(ctx context.Context, zoneID string, zone string) (
 	for {
 		getRecordResult, err := p.client.ListResourceRecordSets(ctx, getRecordsInput)
 		if err != nil {
-			var ne *types.NoSuchHostedZone
-			var ie *types.InvalidInput
-			if errors.As(err, &ne) {
+			var nshze *types.NoSuchHostedZone
+			var iie *types.InvalidInput
+			if errors.As(err, &nshze) {
 				return records, fmt.Errorf("NoSuchHostedZone: %s", err)
-			} else if errors.As(err, &ie) {
+			} else if errors.As(err, &iie) {
 				return records, fmt.Errorf("InvalidInput: %s", err)
 			} else {
 				return records, err
@@ -104,11 +104,11 @@ func (p *Provider) getZoneID(ctx context.Context, zoneName string) (string, erro
 		MaxItems: aws.Int32(1),
 	}
 
-	getZoneResult, err := p.client.ListHostedZonesByName(context.TODO(), getZoneInput)
+	getZoneResult, err := p.client.ListHostedZonesByName(ctx, getZoneInput)
 	if err != nil {
-		var ide *types.InvalidDomainName
+		var idne *types.InvalidDomainName
 		var iie *types.InvalidInput
-		if errors.As(err, &ide) {
+		if errors.As(err, &idne) {
 			return "", fmt.Errorf("InvalidDomainName: %s", err)
 		} else if errors.As(err, &iie) {
 			return "", fmt.Errorf("InvalidInput: %s", err)
@@ -229,15 +229,15 @@ func (p *Provider) deleteRecord(ctx context.Context, zoneID string, record libdn
 func (p *Provider) applyChange(ctx context.Context, input *r53.ChangeResourceRecordSetsInput) error {
 	changeResult, err := p.client.ChangeResourceRecordSets(ctx, input)
 	if err != nil {
-		var nshe *types.NoSuchHostedZone
+		var nshze *types.NoSuchHostedZone
 		var icbe *types.InvalidChangeBatch
-		var iae *types.InvalidInput
+		var iie *types.InvalidInput
 		var prnce *types.PriorRequestNotComplete
-		if errors.As(err, &nshe) {
+		if errors.As(err, &nshze) {
 			return fmt.Errorf("NoSuchHostedZone: %s", err)
 		} else if errors.As(err, &icbe) {
 			return fmt.Errorf("InvalidChangeBatch: %s", err)
-		} else if errors.As(err, &iae) {
+		} else if errors.As(err, &iie) {
 			return fmt.Errorf("InvalidInput: %s", err)
 		} else if errors.As(err, &prnce) {
 			return fmt.Errorf("PriorRequestNotComplete: %s", err)
