@@ -1,4 +1,4 @@
-module github.com/libdns/route53
+module github.com/aymanbagabas/route53
 
 go 1.14
 
